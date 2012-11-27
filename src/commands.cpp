@@ -99,8 +99,16 @@ void execPASS(session* ses, list<string> args) {
     }
 }
 
+// string getAbsolutePath(string relativePath) {
+//     return relativePath;
+// }
+
 void execPWD(session* ses, list<string> args) {
-    string respond(ses->currentDir);
-    respond += "\r\n";
+    string respond = "257 ";
+    // respond += getAbsolutePath(ses->currentDir);
+    respond += ses->currentDir;
+    respond += " created.\r\n";
+    
     write(ses->csck, respond.c_str(), respond.length());
 }
+
