@@ -15,10 +15,21 @@
 
 using namespace std;
 
+enum type {
+	ASCII,
+	IMAGE
+};
+
+enum format {
+	NON_PRINT
+};
+
 struct session {
     int csck; // command connection socket
     // bool isLoginProvided; // true after successful USER command
     string currentDir;
+	type t;
+	format f;
 };
 
 typedef void (*commandPtr)(session*, list<string>);
@@ -31,5 +42,7 @@ void execCmd(session* ses, list<string> line);
 void execUSER(session* ses, list<string> args);
 void execPASS(session* ses, list<string> args);
 void execPWD(session* ses, list<string> args);
+void execLIST(session* ses, list<string> args);
+void execTYPE(session* ses, list<string> args);
 
 #endif

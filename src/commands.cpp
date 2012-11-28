@@ -41,16 +41,19 @@ void execUSER(session* ses, list<string> args) {
         for (it = users.begin(); it != users.end(); it++) {
             if (*it == args.front()) {
                 isFound = true;
+
+                TODO
+                // set sessions user name
                 break;
             }
         }
 
         // give proper respond
-        string success("331 User name okay, need password.\r\n");
-        string fail("532 Need account for storing files.\r\n");
         if (isFound) {
+            string success("331 User name okay, need password.\r\n");
             write(ses->csck, success.c_str(), success.length());
         } else {
+            string fail("532 Need account for storing files.\r\n");
             write(ses->csck, fail.c_str(), fail.length());
         }
     } catch (string err) {
@@ -82,6 +85,9 @@ void execPASS(session* ses, list<string> args) {
         for (it = passwords.begin(); it != passwords.end(); it++) {
             if (*it == args.front()) {
                 isFound = true;
+
+                TODO
+                // compare only sessions user name password
                 break;
             }
         }
@@ -112,3 +118,30 @@ void execPWD(session* ses, list<string> args) {
     write(ses->csck, respond.c_str(), respond.length());
 }
 
+void execLIST(session* ses, list<string> args) {
+    string respond("550 Operation not supported.\r\n");
+    write(ses->csck, respond.c_str(), respond.length());
+}
+
+void execTYPE(session* ses, list<string> args) {
+    string newType = args.front();
+    string ascii("A");
+    string image("I");
+
+    bool isParamLegal = true; // assume true
+    if (newType == ascii) {
+        ses->t = ASCII;
+    } else if (newType == image) {
+        ses->t = IMAGE;
+    } else {
+        isParamLegal = false;
+    }
+
+    if (isParamLegal) {
+        string success("200 Command okay.\r\n");
+        write(ses->csck, success.c_str(), success.length());
+    } else {
+        string fail("504 Command not implemented for that parameter.\r\n");
+        write(ses->csck, fail.c_str(), fail.length());
+    }    
+}

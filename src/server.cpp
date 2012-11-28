@@ -7,7 +7,7 @@ void warnIfError(int code) {
 }
 
 const unsigned int defaultProtocol = 0;
-const unsigned int port = 1150;
+const unsigned int port = 21;
 const unsigned int connectionsQueueLength = 1;
 const unsigned int commandSize = 1000;
 
@@ -74,6 +74,8 @@ void handleClient(int socket) {
     ses.csck = socket;
     // ses.isLoginProvided = false;
     ses.currentDir.assign("/");
+    ses.t = ASCII;
+    ses.f = NON_PRINT;
 
     // command loop
     while (true) {
@@ -90,4 +92,6 @@ void initServer() {
     cmds.insert(pair<string, commandPtr>("USER", execUSER));
     cmds.insert(pair<string, commandPtr>("PASS", execPASS));
     cmds.insert(pair<string, commandPtr>("PWD", execPWD));
+    cmds.insert(pair<string, commandPtr>("LIST", execLIST));
+    cmds.insert(pair<string, commandPtr>("TYPE", execTYPE));
 }
