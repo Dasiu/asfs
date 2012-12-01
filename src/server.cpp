@@ -7,7 +7,8 @@ void warnIfError(int code) {
 }
 
 const unsigned int defaultProtocol = 0;
-const unsigned int port = 21;
+const unsigned int port = 1150;
+const unsigned int dataConnectionPort = 1151;
 const unsigned int connectionsQueueLength = 1;
 const unsigned int commandSize = 1000;
 
@@ -94,4 +95,51 @@ void initServer() {
     cmds.insert(pair<string, commandPtr>("PWD", execPWD));
     cmds.insert(pair<string, commandPtr>("LIST", execLIST));
     cmds.insert(pair<string, commandPtr>("TYPE", execTYPE));
+    cmds.insert(pair<string, commandPtr>("PASV", execPASV));
+}
+
+void runServerDTP(session* ses) {
+    pthread_t serverDTPThread;
+    int result;
+
+    result = pthread_create(&serverDTPThread, NULL, serverDTPMainLoop, (void*) ses);
+    if (result){
+        cerr << "ERROR; return code from pthread_create() is " << result << "\n";
+        exit(EXIT_FAILURE);
+    }
+}
+
+void* serverDTPMainLoop(void* s) {
+    //session* ses = (session*) s;
+
+    cout << "poczatek serverDTPmainloo\n";
+
+    int sck = socket(AF_INET, SOCK_STREAM, defaultProtocol);
+    warnIfError(sck);
+
+    sockaddr_in addr;
+
+    memset(&addr, 0, sizeof(sockaddr_in)); // clear structure
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(dataConnectionPort);
+
+
+    int result = bind(sck, (sockaddr*) &addr, sizeof(sockaddr_in));
+    warnIfError(result);
+
+    cout << "w dtp main loop, przed listen\n";
+    result = listen(sck, connectionsQueueLength);
+    warnIfError(result);
+    cout << "w dtp main loop, po listen\n";
+    int clientSck;
+    unsigned int addrSize = sizeof(addr);
+    while ((clientSck = accept(sck, (sockaddr*) &addr, &addrSize)) != -1) {
+        ses->dsck = clientSck;
+        cout << clientSck << " Data connection created.\n";
+
+        addrSize = sizeof(addr);
+    }
+
+    pthread_exit(NULL);
 }

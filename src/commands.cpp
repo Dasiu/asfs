@@ -41,9 +41,7 @@ void execUSER(session* ses, list<string> args) {
         for (it = users.begin(); it != users.end(); it++) {
             if (*it == args.front()) {
                 isFound = true;
-
-                TODO
-                // set sessions user name
+                ses->login = *it;
                 break;
             }
         }
@@ -66,36 +64,25 @@ void execPASS(session* ses, list<string> args) {
         // load passwords
         ifstream ifs("users.txt", ifstream::in);
 
-        list<string> passwords;
         string user;
+        string password;
         while (ifs.good()) {
-            ifs >> user; // ignore user name
-
             ifs >> user;
-            passwords.push_back(user);
-        }
-
-        if (passwords.size() == 0) {
-            throw string("Error with users.txt file");
-        }
-
-        // find given password in list
-        bool isFound = false;
-        list<string>::iterator it;
-        for (it = passwords.begin(); it != passwords.end(); it++) {
-            if (*it == args.front()) {
-                isFound = true;
-
-                TODO
-                // compare only sessions user name password
-                break;
+            ifs >> password;
+            if (ses->login == user) {
+                ses->password = password;
             }
+        }
+
+        bool isPasswordMatch = false;
+        if (ses->password == args.front()) {
+            isPasswordMatch = true;
         }
 
         // give proper respond
         string success("230 User logged in, proceed.\r\n");
         string fail("530 Not logged in.\r\n");
-        if (isFound) {
+        if (isPasswordMatch) {
             write(ses->csck, success.c_str(), success.length());
         } else {
             write(ses->csck, fail.c_str(), fail.length());
@@ -144,4 +131,12 @@ void execTYPE(session* ses, list<string> args) {
         string fail("504 Command not implemented for that parameter.\r\n");
         write(ses->csck, fail.c_str(), fail.length());
     }    
+}
+
+void execPASV(session* ses, list<string> args) {
+    runServerDTP(ses);
+
+    // this doesn't use connection data port constant!
+    string respond("227 Entering Passive Mode (127,0,0,1,4,255)\r\n");
+    write(ses->csck, respond.c_str(), respond.length());
 }
