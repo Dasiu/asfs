@@ -105,9 +105,26 @@ void execPWD(session* ses, list<string> args) {
     write(ses->csck, respond.c_str(), respond.length());
 }
 
+void openDataConnection(session* ses);
 void execLIST(session* ses, list<string> args) {
-    string respond("550 Operation not supported.\r\n");
+    // string respond("550 Operation not supported.\r\n");
+    // write(ses->csck, respond.c_str(), respond.length());
+
+    openDataConnection(ses);
+    if (ses->dsck <= 0) cerr << "Data connection closed.\n";
+
+    string msg("drwxr-xr-x 2 1000 1000 4096 Dec  4 16:51 bin\n-rw-r--r-- 1 1000 1000  275 Nov 18  2011 config\n-rw-r--r-- 1 1000 1000 1623 Dec  4 16:59 log\n-rw-r--r-- 1 1000 1000  690 Nov 18  2011 Makefile\ndrwxr-xr-x 2 1000 1000 4096 Dec  4 16:51 obj\n-rw-r--r-- 1 1000 1000  584 Nov 18  2011 README.markdown\ndrwxr-xr-x 2 1000 1000 4096 Nov 18  2011 src\n-rw-r--r-- 1 1000 1000    0 Dec  4 17:01 test\n-rw-r--r-- 1 1000 1000   70 Nov 18  2011 users\n");
+    string respond("125 Data connection already open; transfer starting.\r\n");
     write(ses->csck, respond.c_str(), respond.length());
+
+    write(ses->dsck, msg.c_str(), msg.length());
+
+    string respond2("250 Requested file action okay, completed.\r\n");
+    write(ses->csck, respond2.c_str(), respond2.length());
+
+    close(ses->dsck);
+    // string respond("200 Command okay.\r\n");
+    // write(ses->csck, respond.c_str(), respond.length());
 }
 
 void execTYPE(session* ses, list<string> args) {
@@ -134,9 +151,34 @@ void execTYPE(session* ses, list<string> args) {
 }
 
 void execPASV(session* ses, list<string> args) {
-    runServerDTP(ses);
+    cout << "poczatek serverDTPmainloo\n";
 
+    int sck = socket(AF_INET, SOCK_STREAM, defaultProtocol);
+    warnIfError(sck);
+
+    sockaddr_in addr;
+
+    memset(&addr, 0, sizeof(sockaddr_in)); // clear structure
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(dataConnectionPort);
+
+    int result = bind(sck, (sockaddr*) &addr, sizeof(sockaddr_in));
+    warnIfError(result);
+
+    cout << "w dtp main loop, przed listen\n";
+    result = listen(sck, connectionsQueueLength);
+    warnIfError(result);
+    cout << "w dtp main loop, po listen\n";
+
+    ses->dsck = sck;
     // this doesn't use connection data port constant!
-    string respond("227 Entering Passive Mode (127,0,0,1,4,255)\r\n");
+    string respond("227 Entering Passive Mode (127,0,0,1,4,127)\r\n");
     write(ses->csck, respond.c_str(), respond.length());
+}
+
+void openDataConnection(session* ses) {
+    int dataSck = accept(ses->dsck, NULL, NULL);
+    close(ses->dsck);
+    ses->dsck = dataSck;
 }

@@ -39,6 +39,11 @@ struct session {
 typedef void (*commandPtr)(session*, list<string>);
 
 extern map<string, commandPtr> cmds;
+extern const unsigned int dataConnectionPort;
+extern const unsigned int defaultProtocol;
+extern const unsigned int connectionsQueueLength;
+
+void warnIfError(int errCode);
 
 void runServer();
 void runServerDTP(session* ses);

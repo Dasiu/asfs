@@ -110,7 +110,7 @@ void runServerDTP(session* ses) {
 }
 
 void* serverDTPMainLoop(void* s) {
-    //session* ses = (session*) s;
+    session* ses = (session*) s;
 
     cout << "poczatek serverDTPmainloo\n";
 
@@ -138,7 +138,13 @@ void* serverDTPMainLoop(void* s) {
         ses->dsck = clientSck;
         cout << clientSck << " Data connection created.\n";
 
+
+
+        close(ses->dsck);
         addrSize = sizeof(addr);
+        cerr << "po resopndzie\n";
+        pthread_exit(NULL);
+
     }
 
     pthread_exit(NULL);
