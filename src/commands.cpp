@@ -10,6 +10,7 @@ void execCmd(session* ses, list<string> line) {
     commandPtr cmd = NULL;
     cmd = cmds[command];
     if (cmd != NULL) {
+        cout << command << "\n";
         cmd(ses, line);
     } else {
         string respond = "502 Command not implemented.\r\n";
@@ -92,39 +93,45 @@ void execPASS(session* ses, list<string> args) {
     }
 }
 
-// string getAbsolutePath(string relativePath) {
-//     return relativePath;
-// }
+string getAbsolutePath(string relativePath) {
+    char buf[1000] = {0};
+    cout << "przed realpath\n";
+/*    string aa("./");*/
+    string absolutePath(realpath(relativePath.c_str(), buf));
+    cout << absolutePath << "\n";
+    return absolutePath;
+}
 
 void execPWD(session* ses, list<string> args) {
+    string path = ses->currentDir;
+
+    // cut path prefix (./filesystem)
+    int pos = path.find("/", 2);
+    string substring = path.substr(pos, 1000);
+
     string respond = "257 ";
-    // respond += getAbsolutePath(ses->currentDir);
-    respond += ses->currentDir;
+    respond += substring;
     respond += " created.\r\n";
     
     write(ses->csck, respond.c_str(), respond.length());
 }
 
 void openDataConnection(session* ses);
+string runLs(session* ses, list<string> args);
 void execLIST(session* ses, list<string> args) {
-    // string respond("550 Operation not supported.\r\n");
-    // write(ses->csck, respond.c_str(), respond.length());
-
     openDataConnection(ses);
     if (ses->dsck <= 0) cerr << "Data connection closed.\n";
 
-    string msg("drwxr-xr-x 2 1000 1000 4096 Dec  4 16:51 bin\n-rw-r--r-- 1 1000 1000  275 Nov 18  2011 config\n-rw-r--r-- 1 1000 1000 1623 Dec  4 16:59 log\n-rw-r--r-- 1 1000 1000  690 Nov 18  2011 Makefile\ndrwxr-xr-x 2 1000 1000 4096 Dec  4 16:51 obj\n-rw-r--r-- 1 1000 1000  584 Nov 18  2011 README.markdown\ndrwxr-xr-x 2 1000 1000 4096 Nov 18  2011 src\n-rw-r--r-- 1 1000 1000    0 Dec  4 17:01 test\n-rw-r--r-- 1 1000 1000   70 Nov 18  2011 users\n");
+    string listing = runLs(ses, args);
     string respond("125 Data connection already open; transfer starting.\r\n");
     write(ses->csck, respond.c_str(), respond.length());
 
-    write(ses->dsck, msg.c_str(), msg.length());
+    write(ses->dsck, listing.c_str(), listing.length());
 
     string respond2("250 Requested file action okay, completed.\r\n");
     write(ses->csck, respond2.c_str(), respond2.length());
 
     close(ses->dsck);
-    // string respond("200 Command okay.\r\n");
-    // write(ses->csck, respond.c_str(), respond.length());
 }
 
 void execTYPE(session* ses, list<string> args) {
@@ -181,4 +188,30 @@ void openDataConnection(session* ses) {
     int dataSck = accept(ses->dsck, NULL, NULL);
     close(ses->dsck);
     ses->dsck = dataSck;
+}
+
+string runLs(session* ses, list<string> args) {
+    FILE *fp;
+
+    char path[1035];
+
+    string cmd("ls ");
+    cout << "przed absolutepath\n";
+    cmd += getAbsolutePath(ses->currentDir);
+    cmd +=  " -A -n | tail -n+2";
+    cout << cmd << "\n";
+    fp = popen(cmd.c_str(), "r");
+    if (fp == NULL) {
+        printf("Failed to run command\n" );
+    }
+
+    string result("");
+    /* Read the output a line at a time - output it. */
+    while (fgets(path, sizeof(path)-1, fp) != NULL) {
+        result += path;
+    }
+
+    pclose(fp);
+
+    return path;
 }

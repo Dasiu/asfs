@@ -74,7 +74,7 @@ void handleClient(int socket) {
     session ses;
     ses.csck = socket;
     // ses.isLoginProvided = false;
-    ses.currentDir.assign("/");
+    ses.currentDir.assign("./filesystem/");
     ses.t = ASCII;
     ses.f = NON_PRINT;
 
