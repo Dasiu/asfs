@@ -96,6 +96,8 @@ void initServer() {
     cmds.insert(pair<string, commandPtr>("LIST", execLIST));
     cmds.insert(pair<string, commandPtr>("TYPE", execTYPE));
     cmds.insert(pair<string, commandPtr>("PASV", execPASV));
+    cmds.insert(pair<string, commandPtr>("MKD", execMKD));
+    cmds.insert(pair<string, commandPtr>("CWD", execCWD));
 }
 
 void runServerDTP(session* ses) {

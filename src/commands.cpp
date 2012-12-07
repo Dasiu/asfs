@@ -1,5 +1,11 @@
 #include "asfs.h"
 
+void respond(session* ses, string respond);
+void respond(session* ses, string resp);
+void openDataConnection(session* ses);
+string runLs(session* ses, list<string> args);
+string cutPathPrefix(string path);
+
 /** execute proper command */
 void execCmd(session* ses, list<string> line) {
     // assume, that head of list is command name
@@ -13,8 +19,7 @@ void execCmd(session* ses, list<string> line) {
         cout << command << "\n";
         cmd(ses, line);
     } else {
-        string respond = "502 Command not implemented.\r\n";
-        write(ses->csck, respond.c_str(), respond.length());
+        respond(ses, "502 Command not implemented.");
     }
 }
 
@@ -48,13 +53,13 @@ void execUSER(session* ses, list<string> args) {
         }
 
         // give proper respond
+        string resp("");
         if (isFound) {
-            string success("331 User name okay, need password.\r\n");
-            write(ses->csck, success.c_str(), success.length());
+            resp += "331 User name okay, need password.";
         } else {
-            string fail("532 Need account for storing files.\r\n");
-            write(ses->csck, fail.c_str(), fail.length());
+            resp += "532 Need account for storing files.";
         }
+        respond(ses, resp);
     } catch (string err) {
         cerr << err;
     }
@@ -81,13 +86,13 @@ void execPASS(session* ses, list<string> args) {
         }
 
         // give proper respond
-        string success("230 User logged in, proceed.\r\n");
-        string fail("530 Not logged in.\r\n");
+        string resp("");
         if (isPasswordMatch) {
-            write(ses->csck, success.c_str(), success.length());
+            resp += "230 User logged in, proceed.";
         } else {
-            write(ses->csck, fail.c_str(), fail.length());
+            resp += "230 User logged in, proceed.";
         }
+        respond(ses, resp);
     } catch (string err) {
         cerr << err;
     }
@@ -95,41 +100,38 @@ void execPASS(session* ses, list<string> args) {
 
 string getAbsolutePath(string relativePath) {
     char buf[1000] = {0};
-    cout << "przed realpath\n";
-/*    string aa("./");*/
     string absolutePath(realpath(relativePath.c_str(), buf));
-    cout << absolutePath << "\n";
+
     return absolutePath;
 }
 
 void execPWD(session* ses, list<string> args) {
     string path = ses->currentDir;
 
-    // cut path prefix (./filesystem)
-    int pos = path.find("/", 2);
-    string substring = path.substr(pos, 1000);
+    string substring = cutPathPrefix(path);
 
-    string respond = "257 ";
-    respond += substring;
-    respond += " created.\r\n";
+    string resp = "257 ";
+    resp += substring;
+    resp += " created.";
     
-    write(ses->csck, respond.c_str(), respond.length());
+    respond(ses, resp);
 }
 
-void openDataConnection(session* ses);
-string runLs(session* ses, list<string> args);
 void execLIST(session* ses, list<string> args) {
     openDataConnection(ses);
-    if (ses->dsck <= 0) cerr << "Data connection closed.\n";
+    if (ses->dsck <= 0) {
+        cerr << "Data connection closed.\n";
+    }
 
     string listing = runLs(ses, args);
-    string respond("125 Data connection already open; transfer starting.\r\n");
-    write(ses->csck, respond.c_str(), respond.length());
+    string resp("125 Data connection already open; transfer starting.");
+    respond(ses, resp);
 
+    // send listing through data connection
     write(ses->dsck, listing.c_str(), listing.length());
 
-    string respond2("250 Requested file action okay, completed.\r\n");
-    write(ses->csck, respond2.c_str(), respond2.length());
+    string resp2("250 Requested file action okay, completed.");
+    respond(ses, resp2);
 
     close(ses->dsck);
 }
@@ -148,42 +150,90 @@ void execTYPE(session* ses, list<string> args) {
         isParamLegal = false;
     }
 
+    string resp("");
     if (isParamLegal) {
-        string success("200 Command okay.\r\n");
-        write(ses->csck, success.c_str(), success.length());
+        resp += "200 Command okay.";
     } else {
-        string fail("504 Command not implemented for that parameter.\r\n");
-        write(ses->csck, fail.c_str(), fail.length());
-    }    
+        resp += "504 Command not implemented for that parameter.";
+    }
+    respond(ses, resp);
 }
 
 void execPASV(session* ses, list<string> args) {
-    cout << "poczatek serverDTPmainloo\n";
+    if (ses->m != PASSIVE) {
+        int sck = socket(AF_INET, SOCK_STREAM, defaultProtocol);
+        warnIfError(sck);
 
-    int sck = socket(AF_INET, SOCK_STREAM, defaultProtocol);
-    warnIfError(sck);
+        sockaddr_in addr;
 
-    sockaddr_in addr;
+        memset(&addr, 0, sizeof(sockaddr_in)); // clear structure
 
-    memset(&addr, 0, sizeof(sockaddr_in)); // clear structure
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(dataConnectionPort);
 
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(dataConnectionPort);
+        int result = bind(sck, (sockaddr*) &addr, sizeof(sockaddr_in));
+        warnIfError(result);
 
-    int result = bind(sck, (sockaddr*) &addr, sizeof(sockaddr_in));
-    warnIfError(result);
+        result = listen(sck, connectionsQueueLength);
+        warnIfError(result);
 
-    cout << "w dtp main loop, przed listen\n";
-    result = listen(sck, connectionsQueueLength);
-    warnIfError(result);
-    cout << "w dtp main loop, po listen\n";
+        ses->dsck = sck;
+        ses->m = PASSIVE;
+    }
 
-    ses->dsck = sck;
     // this doesn't use connection data port constant!
-    string respond("227 Entering Passive Mode (127,0,0,1,4,127)\r\n");
-    write(ses->csck, respond.c_str(), respond.length());
+    string resp("227 Entering Passive Mode (127,0,0,1,4,127)");
+    respond(ses, resp);
 }
 
+void execMKD(session* ses, list<string> args) {
+    // string dir("mkdir ");
+    string dir("");
+    dir += ses->currentDir;
+    dir += args.front();
+
+    cout << dir << "\n";
+
+    string resp("");
+    if (mkdir(dir.c_str(), 0755) != -1) {
+        resp += "257 ";
+        resp += dir;
+        resp += " Directory created.";
+    } else {
+        resp += "550 Requested action not taken.";
+    }
+    respond(ses, resp);
+}
+
+// assume, that subdirectory in argument precedes /
+void execCWD(session* ses, list<string> args) {
+    string subDir = args.front();
+    if (subDir != "..") {
+        // subDir += "/";
+        ses->currentDir += subDir;
+    } else if (ses->currentDir != "./filesystem/") {
+        string newPath = ses->currentDir;
+
+        // cut last /
+        newPath = newPath.erase(newPath.length()-1, 1);
+
+        // cut current directory
+        int pos = newPath.find_last_of("/");
+        newPath = newPath.substr(0, pos);
+        
+        TODO
+        cerr << "newPath:" << newPath << "\n";
+    } else { // root directory
+        // do nothing
+    }
+
+    string resp("200 directory changed to ");
+    resp += cutPathPrefix(ses->currentDir);
+    resp += ".";
+    respond(ses, resp);
+}
+
+TODO error
 void openDataConnection(session* ses) {
     int dataSck = accept(ses->dsck, NULL, NULL);
     close(ses->dsck);
@@ -196,22 +246,45 @@ string runLs(session* ses, list<string> args) {
     char path[1035];
 
     string cmd("ls ");
-    cout << "przed absolutepath\n";
     cmd += getAbsolutePath(ses->currentDir);
     cmd +=  " -A -n | tail -n+2";
-    cout << cmd << "\n";
+
     fp = popen(cmd.c_str(), "r");
     if (fp == NULL) {
-        printf("Failed to run command\n" );
+        cerr << "Failed to run command\n";
     }
 
     string result("");
     /* Read the output a line at a time - output it. */
     while (fgets(path, sizeof(path)-1, fp) != NULL) {
         result += path;
+        cerr << path << "\n";
     }
 
     pclose(fp);
 
-    return path;
+    return result;
+}
+
+void respond(session* ses, const char* msg) {
+    string resp(msg);
+    respond(ses, resp);
+}
+
+void respond(session* ses, string resp) {
+    resp += "\r\n";
+    int length = resp.length();
+    int status = write(ses->csck, resp.c_str(), length);
+    if (status != length) {
+        cerr << "Respond: write error.\n";
+    }
+}
+
+/**
+ * cutting default prefix, which is "./filesystem"
+ */
+string cutPathPrefix(string path) {
+    int pos = path.find("/", 2);
+    string substring = path.substr(pos, 1000);
+    return substring;
 }

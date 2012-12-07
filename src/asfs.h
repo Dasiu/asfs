@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 #include <pthread.h>
 #include <limits.h>
+#include <sys/stat.h>
 
 using namespace std;
 
@@ -27,6 +28,10 @@ enum format {
 	NON_PRINT
 };
 
+enum mode {
+	PASSIVE
+};
+
 struct session {
     int csck; // command connection socket
     int dsck; // data socket
@@ -35,6 +40,7 @@ struct session {
     string currentDir;
 	type t;
 	format f;
+	mode m;
 };
 
 typedef void (*commandPtr)(session*, list<string>);
@@ -57,5 +63,7 @@ void execPWD(session* ses, list<string> args);
 void execLIST(session* ses, list<string> args);
 void execTYPE(session* ses, list<string> args);
 void execPASV(session* ses, list<string> args);
+void execMKD(session* ses, list<string> args);
+void execCWD(session* ses, list<string> args);
 
 #endif
