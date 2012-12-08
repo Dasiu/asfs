@@ -1,7 +1,8 @@
 #include "asfs.h"
 
-void warnIfError(int code) {
+void warnIfError(const char* file, int line, int code) {
     if (code == -1) {
+        cerr << file << ":" << line << ": ";
         perror("");
     }
 }
@@ -23,7 +24,7 @@ void runServer() {
     initServer();
 
     int sck = socket(AF_INET, SOCK_STREAM, defaultProtocol);
-    warnIfError(sck);
+    ERROR(sck);
 
     sockaddr_in addr;
 
@@ -33,10 +34,10 @@ void runServer() {
     addr.sin_port = htons(port);
 
     int result = bind(sck, (sockaddr*) &addr, sizeof(sockaddr_in));
-    warnIfError(result);
+    ERROR(result);
 
     result = listen(sck, connectionsQueueLength);
-    warnIfError(result);
+    ERROR(result);
 
     int clientSck;
     unsigned int addrSize = sizeof(addr);
@@ -77,6 +78,7 @@ void handleClient(int socket) {
     ses.currentDir.assign("./filesystem/");
     ses.t = ASCII;
     ses.f = NON_PRINT;
+    ses.m = NONE;
 
     // command loop
     while (true) {
@@ -117,7 +119,7 @@ void* serverDTPMainLoop(void* s) {
     cout << "poczatek serverDTPmainloo\n";
 
     int sck = socket(AF_INET, SOCK_STREAM, defaultProtocol);
-    warnIfError(sck);
+    ERROR(sck);
 
     sockaddr_in addr;
 
@@ -125,14 +127,14 @@ void* serverDTPMainLoop(void* s) {
 
     addr.sin_family = AF_INET;
     addr.sin_port = htons(dataConnectionPort);
-
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     int result = bind(sck, (sockaddr*) &addr, sizeof(sockaddr_in));
-    warnIfError(result);
+    ERROR(result);
 
     cout << "w dtp main loop, przed listen\n";
     result = listen(sck, connectionsQueueLength);
-    warnIfError(result);
+    ERROR(result);
     cout << "w dtp main loop, po listen\n";
     int clientSck;
     unsigned int addrSize = sizeof(addr);

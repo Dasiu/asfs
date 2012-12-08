@@ -6,6 +6,7 @@
 #include <map>
 #include <string>
 #include <list>
+#include <sstream>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -16,6 +17,9 @@
 #include <pthread.h>
 #include <limits.h>
 #include <sys/stat.h>
+#include <errno.h>
+
+#define ERROR(code)  warnIfError(__FILE__, __LINE__, (code))
 
 using namespace std;
 
@@ -29,6 +33,7 @@ enum format {
 };
 
 enum mode {
+	NONE,
 	PASSIVE
 };
 
@@ -50,7 +55,7 @@ extern const unsigned int dataConnectionPort;
 extern const unsigned int defaultProtocol;
 extern const unsigned int connectionsQueueLength;
 
-void warnIfError(int errCode);
+void warnIfError(const char* file, int line, int code);
 
 void runServer();
 void runServerDTP(session* ses);

@@ -3,6 +3,7 @@
 void respond(session* ses, string respond);
 void respond(session* ses, string resp);
 void openDataConnection(session* ses);
+void closeDataConnection(session* ses);
 string runLs(session* ses, list<string> args);
 string cutPathPrefix(string path);
 
@@ -133,7 +134,7 @@ void execLIST(session* ses, list<string> args) {
     string resp2("250 Requested file action okay, completed.");
     respond(ses, resp2);
 
-    close(ses->dsck);
+    closeDataConnection(ses);
 }
 
 void execTYPE(session* ses, list<string> args) {
@@ -160,39 +161,49 @@ void execTYPE(session* ses, list<string> args) {
 }
 
 void execPASV(session* ses, list<string> args) {
+    int port = dataConnectionPort;
     if (ses->m != PASSIVE) {
         int sck = socket(AF_INET, SOCK_STREAM, defaultProtocol);
-        warnIfError(sck);
+        ERROR(sck);
 
         sockaddr_in addr;
 
         memset(&addr, 0, sizeof(sockaddr_in)); // clear structure
 
         addr.sin_family = AF_INET;
-        addr.sin_port = htons(dataConnectionPort);
-
-        int result = bind(sck, (sockaddr*) &addr, sizeof(sockaddr_in));
-        warnIfError(result);
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_port = htons(port);
+        
+        // find free port
+        int result;
+        while ((result = bind(sck, (sockaddr*) &addr, sizeof(sockaddr_in))) == -1 && errno == EADDRINUSE) {
+            addr.sin_port = htons(++port);
+        }
+        ERROR(result);
 
         result = listen(sck, connectionsQueueLength);
-        warnIfError(result);
+        ERROR(result);
 
         ses->dsck = sck;
         ses->m = PASSIVE;
     }
 
-    // this doesn't use connection data port constant!
-    string resp("227 Entering Passive Mode (127,0,0,1,4,127)");
-    respond(ses, resp);
+    short upperByte = port / 256;
+    short downByte = port % 256;
+    stringstream resp;
+    resp << "227 Entering Passive Mode (127,0,0,1," << upperByte << "," << downByte << ")";
+    // string resp("227 Entering Passive Mode (127,0,0,1,4,127)");
+    respond(ses, resp.str());
 }
 
+TODO cut prefix and stuff
 void execMKD(session* ses, list<string> args) {
     // string dir("mkdir ");
     string dir("");
     dir += ses->currentDir;
     dir += args.front();
 
-    cout << dir << "\n";
+    cerr << dir << "\n";
 
     string resp("");
     if (mkdir(dir.c_str(), 0755) != -1) {
@@ -219,9 +230,9 @@ void execCWD(session* ses, list<string> args) {
 
         // cut current directory
         int pos = newPath.find_last_of("/");
-        newPath = newPath.substr(0, pos);
+        newPath = newPath.substr(0, pos+1);
         
-        TODO
+        ses->currentDir = newPath;
         cerr << "newPath:" << newPath << "\n";
     } else { // root directory
         // do nothing
@@ -233,11 +244,16 @@ void execCWD(session* ses, list<string> args) {
     respond(ses, resp);
 }
 
-TODO error
 void openDataConnection(session* ses) {
     int dataSck = accept(ses->dsck, NULL, NULL);
+    ERROR(dataSck);
     close(ses->dsck);
     ses->dsck = dataSck;
+}
+
+void closeDataConnection(session* ses) {
+    close(ses->dsck);
+    ses->m = NONE;
 }
 
 string runLs(session* ses, list<string> args) {
