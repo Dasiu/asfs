@@ -196,11 +196,11 @@ void execPASV(session* ses, list<string> args) {
     respond(ses, resp.str());
 }
 
-TODO cut prefix and stuff
 void execMKD(session* ses, list<string> args) {
     // string dir("mkdir ");
     string dir("");
     dir += ses->currentDir;
+    dir += "/";
     dir += args.front();
 
     cerr << dir << "\n";
@@ -208,7 +208,7 @@ void execMKD(session* ses, list<string> args) {
     string resp("");
     if (mkdir(dir.c_str(), 0755) != -1) {
         resp += "257 ";
-        resp += dir;
+        resp += cutPathPrefix(dir);
         resp += " Directory created.";
     } else {
         resp += "550 Requested action not taken.";
@@ -217,10 +217,13 @@ void execMKD(session* ses, list<string> args) {
 }
 
 // assume, that subdirectory in argument precedes /
+// directory name cannot contain space
 void execCWD(session* ses, list<string> args) {
     string subDir = args.front();
     if (subDir != "..") {
-        // subDir += "/";
+        if (subDir[0] == '/') {
+            subDir = subDir.substr(1, subDir.length());
+        }
         ses->currentDir += subDir;
     } else if (ses->currentDir != "./filesystem/") {
         string newPath = ses->currentDir;
