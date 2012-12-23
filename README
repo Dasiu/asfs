@@ -1,0 +1,43 @@
+DATA TYPES
+
+Wielkość bajtu transferu ("transfer byte size") jest zawsze równa 8 bitów.
+
+Wielkość bajtu logicznego - określa strukturę pliku przechowywanego w systemie.
+
+Ustawienie typu ASCII implikuje wilkość bajtu logicznego.
+
+Typ ASCII
+
+- domyślny
+- stworzony do transferu plików tekstowych
+- strona wysyłająca dane konwertuje lokalną reprezentację pliku na standardowego
+  8-bit NVT-ASCII. Odbiorca wykonuje proces odwrotny.
+- koniec linii oznaczony jest przez CRLF
+- użycie standardu NVT-ASCII oznacza, że dane mają być interpretowane jako
+  8-bitowe dane.
+
+- do zrobienia konwersja znaków konca linii, między systemami uniksowymi, apple oraz windows.
+
+Typ IMAGE (BINARY)
+
+- dane przesyłane są jako ciąg bitów, które na potrzeby transferu pakowane są
+  w bajty.
+
+- Odbiorca musi przechowywać dane jako ciąg bitów.
+
+- System odbiorcy może wymagać zostawienia miejsca na nagłówek pliku.
+  Może on być wielkości bajtu, słowa lub bloku. Musi być zainicjalizowany zerami.
+  Musi znajdować się na końcu pliku.
+  Musi być sposób znalezienia jego początku.
+
+Typ Non Print (połączony z ASCII)
+
+- Plik nie zawiera informacji o pionowym formatowaniu pliku, która jest istotna podczas druku.
+
+DATA STRUCTURES
+
+- sktruktura plikowa (file structure) - domyślna, plik nie ma wewnętrznej struktury, plik jest interpretowany jako sekwencja bajtów.
+
+
+
+

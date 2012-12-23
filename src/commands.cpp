@@ -1,5 +1,6 @@
 #include "asfs.h"
 
+string getAbsolutePath(string relativePath);
 void respond(session* ses, string respond);
 void respond(session* ses, string resp);
 void openDataConnection(session* ses);
@@ -17,7 +18,19 @@ void execCmd(session* ses, list<string> line) {
     commandPtr cmd = NULL;
     cmd = cmds[command];
     if (cmd != NULL) {
-        cout << command << "\n";
+        // print command
+        cout << command << " ";
+        cerr << "line size: " << line.size() << "\n";
+        if (line.size() != 0) {
+            list<string> argsCopy = line;
+            for (unsigned i = 0; i < line.size(); ++i) {
+                cout << argsCopy.front() << " ";
+                argsCopy.pop_front();
+            }
+            cout << "\n";
+        }
+
+        // execute command
         cmd(ses, line);
     } else {
         respond(ses, "502 Command not implemented.");
@@ -99,21 +112,14 @@ void execPASS(session* ses, list<string> args) {
     }
 }
 
-string getAbsolutePath(string relativePath) {
-    char buf[1000] = {0};
-    string absolutePath(realpath(relativePath.c_str(), buf));
-
-    return absolutePath;
-}
-
 void execPWD(session* ses, list<string> args) {
     string path = ses->currentDir;
 
     string substring = cutPathPrefix(path);
 
-    string resp = "257 ";
+    string resp = "257 \"";
     resp += substring;
-    resp += " created.";
+    resp += "\" created.";
     
     respond(ses, resp);
 }
@@ -124,6 +130,8 @@ void execLIST(session* ses, list<string> args) {
         cerr << "Data connection closed.\n";
     }
 
+    args.push_back("adam");
+    cerr << "execList: prez runLs\n";
     string listing = runLs(ses, args);
     string resp("125 Data connection already open; transfer starting.");
     respond(ses, resp);
@@ -197,10 +205,8 @@ void execPASV(session* ses, list<string> args) {
 }
 
 void execMKD(session* ses, list<string> args) {
-    // string dir("mkdir ");
     string dir("");
     dir += ses->currentDir;
-    dir += "/";
     dir += args.front();
 
     cerr << dir << "\n";
@@ -216,14 +222,14 @@ void execMKD(session* ses, list<string> args) {
     respond(ses, resp);
 }
 
-// assume, that subdirectory in argument precedes /
 // directory name cannot contain space
 void execCWD(session* ses, list<string> args) {
     string subDir = args.front();
     if (subDir != "..") {
-        if (subDir[0] == '/') {
-            subDir = subDir.substr(1, subDir.length());
-        }
+        // if (subDir[0] == '/') {
+        //     subDir = subDir.substr(1, subDir.length());
+        // }
+        subDir += "/";
         ses->currentDir += subDir;
     } else if (ses->currentDir != "./filesystem/") {
         string newPath = ses->currentDir;
@@ -241,10 +247,24 @@ void execCWD(session* ses, list<string> args) {
         // do nothing
     }
 
-    string resp("200 directory changed to ");
+    string resp("200 directory changed to \"");
     resp += cutPathPrefix(ses->currentDir);
-    resp += ".";
+    resp += "\".";
     respond(ses, resp);
+}
+
+string getAbsolutePath(string relativePath) {
+    char buf[1000] = {0};
+    cerr << "getAbsolutePath: przed absolutePath, relativePath: " << relativePath << "\n";
+    char* canonicalPath = realpath(relativePath.c_str(), buf);
+    string absolutePath;
+    if (canonicalPath != NULL) {
+        absolutePath.assign(canonicalPath);
+    } else {
+        absolutePath.assign("");
+    }
+    cerr << "getAbsolutePath: po absolutePath\n";
+    return absolutePath;
 }
 
 void openDataConnection(session* ses) {
@@ -264,20 +284,32 @@ string runLs(session* ses, list<string> args) {
 
     char path[1035];
 
+    cerr << "runLS: przed getAbsolutePath\n"; 
     string cmd("ls ");
     cmd += getAbsolutePath(ses->currentDir);
     cmd +=  " -A -n | tail -n+2";
+
+    cerr << "runLs: " << cmd << "\n";
+
+    cerr << "runLs przed popen\n";
 
     fp = popen(cmd.c_str(), "r");
     if (fp == NULL) {
         cerr << "Failed to run command\n";
     }
 
+    cerr << "runLs po popen\n";
     string result("");
     /* Read the output a line at a time - output it. */
     while (fgets(path, sizeof(path)-1, fp) != NULL) {
+        if (path == NULL) {
+            cerr << "runLS path jest nullem\n";
+        } else {
+            cerr << "runLS path nie jest nullem\n";
         result += path;
-        cerr << path << "\n";
+        // cerr << path;
+            
+        }
     }
 
     pclose(fp);
