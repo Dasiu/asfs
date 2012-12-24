@@ -17,13 +17,10 @@ server.o: src/server.cpp src/${HEADER}
 commands.o: src/commands.cpp src/${HEADER}
 	${CC} -c ${C_FLAGS} src/commands.cpp -o obj/commands.o
 
-main.o: src/main.cpp src/${HEADER}
-	${CC} -c ${C_FLAGS} src/main.cpp -o obj/main.o
 
 
-
-${APP}:	server.o commands.o main.o
-	${CC} obj/server.o obj/commands.o obj/main.o -o bin/${APP} ${L_FLAGS}
+${APP}:	server.o commands.o
+	${CC} obj/server.o obj/commands.o -o bin/${APP} ${L_FLAGS}
 
 
 .PHONY:	test
