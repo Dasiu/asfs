@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <ctime>
 
 #define ERROR(code)  warnIfError(__FILE__, __LINE__, (code))
 
@@ -45,6 +46,7 @@ struct session {
     string password;
     string currentDir;
     string ip;
+    int clientPort;
 	type t;
 	format f;
 	mode m;
@@ -59,6 +61,8 @@ extern const unsigned int connectionsQueueLength;
 extern const unsigned int bufSize;
 extern const unsigned int connectionLimit;
 
+void printEvent(session* ses, const char* msg);
+void printEvent(session* ses, string msg);
 void warnIfError(const char* file, int line, int code);
 
 void handleClient(session* ses);

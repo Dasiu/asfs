@@ -19,16 +19,16 @@ void execCmd(session* ses, list<string> line) {
     cmd = cmds[command];
     if (cmd != NULL) {
         // print command
-        cout << command << " ";
-        cerr << "line size: " << line.size() << "\n";
+        stringstream lineStr;
+        lineStr << command << " ";
         if (line.size() != 0) {
             list<string> argsCopy = line;
             for (unsigned i = 0; i < line.size(); ++i) {
-                cout << argsCopy.front() << " ";
+                lineStr << argsCopy.front() << " ";
                 argsCopy.pop_front();
             }
-            cout << "\n";
         }
+        printEvent(ses, lineStr.str());
 
         // execute command
         cmd(ses, line);
@@ -131,7 +131,6 @@ void execLIST(session* ses, list<string> args) {
     }
 
     args.push_back("adam");
-    cerr << "execList: prez runLs\n";
     string listing = runLs(ses, args);
     string resp("125 Data connection already open; transfer starting.");
     respond(ses, resp);
@@ -226,9 +225,9 @@ void execMKD(session* ses, list<string> args) {
 void execCWD(session* ses, list<string> args) {
     string subDir = args.front();
     if (subDir != "..") {
-        // if (subDir[0] == '/') {
-        //     subDir = subDir.substr(1, subDir.length());
-        // }
+        if (subDir[0] == '/') {
+            subDir = subDir.substr(1, subDir.length());
+        }
         subDir += "/";
         ses->currentDir += subDir;
     } else if (ses->currentDir != "./filesystem/") {
@@ -242,7 +241,6 @@ void execCWD(session* ses, list<string> args) {
         newPath = newPath.substr(0, pos+1);
         
         ses->currentDir = newPath;
-        cerr << "newPath:" << newPath << "\n";
     } else { // root directory
         // do nothing
     }
@@ -255,7 +253,7 @@ void execCWD(session* ses, list<string> args) {
 
 string getAbsolutePath(string relativePath) {
     char buf[1000] = {0};
-    cerr << "getAbsolutePath: przed absolutePath, relativePath: " << relativePath << "\n";
+ 
     char* canonicalPath = realpath(relativePath.c_str(), buf);
     string absolutePath;
     if (canonicalPath != NULL) {
@@ -263,7 +261,7 @@ string getAbsolutePath(string relativePath) {
     } else {
         absolutePath.assign("");
     }
-    cerr << "getAbsolutePath: po absolutePath\n";
+
     return absolutePath;
 }
 
@@ -284,32 +282,19 @@ string runLs(session* ses, list<string> args) {
 
     char path[1035];
 
-    cerr << "runLS: przed getAbsolutePath\n"; 
     string cmd("ls ");
     cmd += getAbsolutePath(ses->currentDir);
     cmd +=  " -A -n | tail -n+2";
-
-    cerr << "runLs: " << cmd << "\n";
-
-    cerr << "runLs przed popen\n";
 
     fp = popen(cmd.c_str(), "r");
     if (fp == NULL) {
         cerr << "Failed to run command\n";
     }
 
-    cerr << "runLs po popen\n";
     string result("");
     /* Read the output a line at a time - output it. */
     while (fgets(path, sizeof(path)-1, fp) != NULL) {
-        if (path == NULL) {
-            cerr << "runLS path jest nullem\n";
-        } else {
-            cerr << "runLS path nie jest nullem\n";
         result += path;
-        // cerr << path;
-            
-        }
     }
 
     pclose(fp);

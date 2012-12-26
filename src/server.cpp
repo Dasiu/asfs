@@ -1,11 +1,6 @@
 #include "asfs.h"
 
-void warnIfError(const char* file, int line, int code) {
-    if (code == -1) {
-        cerr << file << ":" << line << ": ";
-        perror("");
-    }
-}
+// TODO zablokowanie dzialania serwera, gdy sie nie poda hasla
 
 const unsigned int defaultProtocol = 0;
 const unsigned int port = 1150;
@@ -29,21 +24,18 @@ pthread_mutex_t sock_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t ses_mutex  = PTHREAD_MUTEX_INITIALIZER;
 
 int cln_sockets [connectionLimit];
-session ses;
+session ses; // shared between all clients
 
 void* client_loop (void* arg) 
 {
-    printf("poczatek client loop\n");
     session sess = *((session*) arg);
-    printf("po sess\n");
     pthread_mutex_unlock (&ses_mutex);
 
-    printf("przed printf\n");
-    sess.ip.c_str();
-    printf("przed printf po sess test\n");
-    printf ("New client (%s) thread started for socket %d\n", sess.ip.c_str(), sess.csck);
+    printEvent(&sess, "Client connected"); 
 
     handleClient(&sess);
+
+    printEvent(&sess, "Client disconnected");
 
     close (sess.csck);
     pthread_mutex_lock (&sock_mutex);
@@ -52,9 +44,8 @@ void* client_loop (void* arg)
             cln_sockets [i] = 0;
             break;
         } 
-    pthread_mutex_unlock (&sock_mutex); 
+    pthread_mutex_unlock (&sock_mutex);
 
-    printf ("Client thread ending for socket %d\n", sess.csck);
     pthread_exit (NULL);
 }
 
@@ -95,8 +86,6 @@ void* main_loop (void* arg)
             continue;
         }
 
-        printf("[%d:%s]\n", ntohs(cln_addr.sin_port), inet_ntoa(cln_addr.sin_addr));
-
         pthread_mutex_lock (&sock_mutex);
         unsigned i;
         for (i = 0; i < connectionLimit; i++)
@@ -112,20 +101,17 @@ void* main_loop (void* arg)
             continue;
         }
 
-        printf("przed ip\n");
         string ip(inet_ntoa(cln_addr.sin_addr));
-        printf("po ip\n");
 
         pthread_mutex_lock (&ses_mutex);
         // create session
         ses.csck = cln_sockets[i];
-        // ses.isLoginProvided = false;
         ses.currentDir.assign("./filesystem/");
         ses.t = ASCII;
         ses.f = NON_PRINT;
         ses.m = NONE;
         ses.ip = ip;
-        printf("po init\n");
+        ses.clientPort = cln_addr.sin_port;
 
         if (pthread_create (&client_threads [i], NULL, client_loop, &ses) != 0) {
             pthread_mutex_unlock (&ses_mutex);
@@ -148,35 +134,6 @@ int main (int argc, char** argv)
 
     return EXIT_SUCCESS;
 }
-
-// void runServer() {
-
-//     initCommandMap();
-
-//     int sck = socket(AF_INET, SOCK_STREAM, defaultProtocol);
-//     ERROR(sck);
-
-//     sockaddr_in addr;
-
-//     memset(&addr, 0, sizeof(sockaddr_in)); // clear structure
-
-//     addr.sin_family = AF_INET;
-//     addr.sin_port = htons(port);
-
-//     int result = bind(sck, (sockaddr*) &addr, sizeof(sockaddr_in));
-//     ERROR(result);
-
-//     result = listen(sck, connectionsQueueLength);
-//     ERROR(result);
-
-//     int clientSck;
-//     unsigned int addrSize = sizeof(addr);
-//     while ((clientSck = accept(sck, (sockaddr*) &addr, &addrSize)) != -1) {
-//         handleClient(clientSck);
-
-//         addrSize = sizeof(addr);
-//     }
-// }
 
 // elements of list has to be deleted later
 list<string> splitCommand(char cmd[]) {
@@ -202,13 +159,20 @@ void handleClient(session* ses) {
     write(ses->csck, response.c_str(), response.length());
 
     // command loop
+    int status;
     while (true) {
         char cmd[commandSize] = {0};
-        read(ses->csck, cmd, commandSize-1); // last character for null termination
 
-        list<string> args = splitCommand(cmd);
+        status = read(ses->csck, cmd, commandSize-1); // last character for null termination
+        if (status == 0) { // connection closed
+            return;
+        } else {
+            ERROR(status);
 
-        execCmd(ses, args);
+            list<string> args = splitCommand(cmd);
+
+            execCmd(ses, args);
+        }
     }
 }
 
@@ -223,54 +187,25 @@ void initCommandMap() {
     cmds.insert(pair<string, commandPtr>("CWD", execCWD));
 }
 
-// void runServerDTP(session* ses) {
-//     pthread_t serverDTPThread;
-//     int result;
+void printEvent(session* ses, const char* msg) {
+    string msgStr(msg);
+    printEvent(ses, msgStr);
+}
 
-//     result = pthread_create(&serverDTPThread, NULL, serverDTPMainLoop, (void*) ses);
-//     if (result){
-//         cerr << "ERROR; return code from pthread_create() is " << result << "\n";
-//         exit(EXIT_FAILURE);
-//     }
-// }
+void printEvent(session* ses, string msg) {
+    time_t currentTime = time(NULL);
+    string currentTimeStr(ctime(&currentTime));
+    currentTimeStr = currentTimeStr.erase(currentTimeStr.length()-1, 1); // cut new line feed
 
-// void* serverDTPMainLoop(void* s) {
-//     session* ses = (session*) s;
+    stringstream sessionInfo;
+    sessionInfo << "[" << ses->clientPort << ":" << ses->ip << "]";
 
-//     cout << "poczatek serverDTPmainloo\n";
+    cout << currentTimeStr << " :: " << sessionInfo.str() << " :: " << msg << "\n";
+}
 
-//     int sck = socket(AF_INET, SOCK_STREAM, defaultProtocol);
-//     ERROR(sck);
-
-//     sockaddr_in addr;
-
-//     memset(&addr, 0, sizeof(sockaddr_in)); // clear structure
-
-//     addr.sin_family = AF_INET;
-//     addr.sin_port = htons(dataConnectionPort);
-//     addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-//     int result = bind(sck, (sockaddr*) &addr, sizeof(sockaddr_in));
-//     ERROR(result);
-
-//     cout << "w dtp main loop, przed listen\n";
-//     result = listen(sck, connectionsQueueLength);
-//     ERROR(result);
-//     cout << "w dtp main loop, po listen\n";
-//     int clientSck;
-//     unsigned int addrSize = sizeof(addr);
-//     while ((clientSck = accept(sck, (sockaddr*) &addr, &addrSize)) != -1) {
-//         ses->dsck = clientSck;
-//         cout << clientSck << " Data connection created.\n";
-
-
-
-//         close(ses->dsck);
-//         addrSize = sizeof(addr);
-//         cerr << "po resopndzie\n";
-//         pthread_exit(NULL);
-
-//     }
-
-//     pthread_exit(NULL);
-// }
+void warnIfError(const char* file, int line, int code) {
+    if (code == -1) {
+        cerr << file << ":" << line << ": ";
+        perror("");
+    }
+}
