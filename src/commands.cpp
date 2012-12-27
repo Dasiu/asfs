@@ -28,6 +28,7 @@ void execCmd(session* ses, list<string> line) {
                 argsCopy.pop_front();
             }
         }
+        lineStr << " :: " << ses->currentDir;
         printEvent(ses, lineStr.str());
 
         // execute command
@@ -130,7 +131,6 @@ void execLIST(session* ses, list<string> args) {
         cerr << "Data connection closed.\n";
     }
 
-    args.push_back("adam");
     string listing = runLs(ses, args);
     string resp("125 Data connection already open; transfer starting.");
     respond(ses, resp);
@@ -169,6 +169,7 @@ void execTYPE(session* ses, list<string> args) {
 
 void execPASV(session* ses, list<string> args) {
     int port = dataConnectionPort;
+    string ip;
     if (ses->m != PASSIVE) {
         int sck = socket(AF_INET, SOCK_STREAM, defaultProtocol);
         ERROR(sck);
@@ -193,12 +194,25 @@ void execPASV(session* ses, list<string> args) {
 
         ses->dsck = sck;
         ses->m = PASSIVE;
+
+        // get server ip
+        socklen_t addr_len = sizeof(sockaddr_in);
+        if (getsockname(ses->csck, (sockaddr*)&addr, &addr_len) != -1) {
+            ip.assign(inet_ntoa(addr.sin_addr));
+        }
     }
 
     short upperByte = port / 256;
     short downByte = port % 256;
+    
+    // replace dots to commas
+    int pos = 0;
+    while ((pos = ip.find('.')) != string::npos) {
+        ip.replace(pos, 1, ",");
+    }    
+
     stringstream resp;
-    resp << "227 Entering Passive Mode (127,0,0,1," << upperByte << "," << downByte << ")";
+    resp << "227 Entering Passive Mode (" << ip << "," << upperByte << "," << downByte << ")";
     // string resp("227 Entering Passive Mode (127,0,0,1,4,127)");
     respond(ses, resp.str());
 }
@@ -224,31 +238,67 @@ void execMKD(session* ses, list<string> args) {
 // directory name cannot contain space
 void execCWD(session* ses, list<string> args) {
     string subDir = args.front();
-    if (subDir != "..") {
-        if (subDir[0] == '/') {
-            subDir = subDir.substr(1, subDir.length());
+    if (subDir == "..") {
+        if (ses->currentDir != "./filesystem/") {
+            string newPath = ses->currentDir;
+
+            // cut last /
+            newPath = newPath.erase(newPath.length()-1, 1);
+
+            // cut current directory
+            int pos = newPath.find_last_of("/");
+            newPath = newPath.substr(0, pos+1);
+            
+            ses->currentDir = newPath;
         }
-        subDir += "/";
-        ses->currentDir += subDir;
-    } else if (ses->currentDir != "./filesystem/") {
-        string newPath = ses->currentDir;
+    } else {
+        stringstream newPath;
+        if (subDir[0] == '/') { // if absolute path
+            newPath << "./filesystem" << subDir;
+            cerr << "cwd: " << newPath.str() << "\n";
 
-        // cut last /
-        newPath = newPath.erase(newPath.length()-1, 1);
-
-        // cut current directory
-        int pos = newPath.find_last_of("/");
-        newPath = newPath.substr(0, pos+1);
-        
-        ses->currentDir = newPath;
-    } else { // root directory
-        // do nothing
+            ses->currentDir = newPath.str();
+            // subDir = subDir.substr(1, subDir.length());
+        } else {
+            subDir += "/";
+            ses->currentDir += subDir;
+        }
     }
 
     string resp("200 directory changed to \"");
     resp += cutPathPrefix(ses->currentDir);
     resp += "\".";
     respond(ses, resp);
+}
+
+void execSTOR(session* ses, list<string> args) {
+    int fd = 0;
+    char buf[BUF_SIZE] = {0};
+    int bytesRead = 0;
+    string path(ses->currentDir);
+    path += args.front();
+    cerr << ses->currentDir << "\n";
+    cerr << path << "\n";
+    switch (ses->t) {
+        case ASCII:
+            fd = open(path.c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+            cerr << "desc: " << fd << "\n";
+
+            openDataConnection(ses);
+            while ((bytesRead = read(ses->dsck, buf, BUF_SIZE)) != 0 &&
+                    bytesRead != -1) {
+                write(fd, buf, bytesRead);
+            }
+            closeDataConnection(ses);
+            close(fd);
+            break;
+        case IMAGE:
+            printEvent(ses, "IMAGE type is not implemented yet");
+            break;
+        default:
+            printEvent(ses, "Undefined session type");
+            break;
+    }
 }
 
 string getAbsolutePath(string relativePath) {

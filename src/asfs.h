@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <ctime>
+#include <fcntl.h>
 
 #define ERROR(code)  warnIfError(__FILE__, __LINE__, (code))
 
@@ -58,8 +59,9 @@ extern map<string, commandPtr> cmds;
 extern const unsigned int dataConnectionPort;
 extern const unsigned int defaultProtocol;
 extern const unsigned int connectionsQueueLength;
-extern const unsigned int bufSize;
 extern const unsigned int connectionLimit;
+
+#define BUF_SIZE 1024
 
 void printEvent(session* ses, const char* msg);
 void printEvent(session* ses, string msg);
@@ -78,6 +80,7 @@ void execTYPE(session* ses, list<string> args);
 void execPASV(session* ses, list<string> args);
 void execMKD(session* ses, list<string> args);
 void execCWD(session* ses, list<string> args);
+void execSTOR(session* ses, list<string> args);
  
 
 #endif

@@ -7,7 +7,6 @@ const unsigned int port = 1150;
 const unsigned int dataConnectionPort = 1151;
 const unsigned int connectionsQueueLength = 1;
 const unsigned int commandSize = 1000;
-const unsigned int bufSize = 1024;
 const unsigned int connectionLimit = 128;
 
 map<string, commandPtr> cmds;
@@ -185,6 +184,7 @@ void initCommandMap() {
     cmds.insert(pair<string, commandPtr>("PASV", execPASV));
     cmds.insert(pair<string, commandPtr>("MKD", execMKD));
     cmds.insert(pair<string, commandPtr>("CWD", execCWD));
+    cmds.insert(pair<string, commandPtr>("STOR", execSTOR));
 }
 
 void printEvent(session* ses, const char* msg) {
