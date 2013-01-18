@@ -81,6 +81,7 @@ void execPASV(session* ses, list<string> args);
 void execMKD(session* ses, list<string> args);
 void execCWD(session* ses, list<string> args);
 void execSTOR(session* ses, list<string> args);
+void execRETR(session* ses, list<string> argsCopy);
  
 
 #endif

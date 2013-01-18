@@ -185,6 +185,7 @@ void initCommandMap() {
     cmds.insert(pair<string, commandPtr>("MKD", execMKD));
     cmds.insert(pair<string, commandPtr>("CWD", execCWD));
     cmds.insert(pair<string, commandPtr>("STOR", execSTOR));
+    cmds.insert(pair<string, commandPtr>("RETR", execRETR));
 }
 
 void printEvent(session* ses, const char* msg) {

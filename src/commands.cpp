@@ -276,29 +276,103 @@ void execSTOR(session* ses, list<string> args) {
     char buf[BUF_SIZE] = {0};
     int bytesRead = 0;
     string path(ses->currentDir);
+    if (path[path.size()] == '/') {
+        path += "/";
+    }
     path += args.front();
     cerr << ses->currentDir << "\n";
     cerr << path << "\n";
+
+    string dataChunk;
+    int pos = 0;
+
+    // open data connection
+    openDataConnection(ses);
+    if (ses->dsck <= 0) {
+        cerr << "Data connection closed.\n";
+    }
+    
+    string resp("125 Data connection opened.");
+    respond(ses, resp);
+
+    cerr << "new file path: " << path << "\n";
+    // read data
     switch (ses->t) {
         case ASCII:
             fd = open(path.c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
             cerr << "desc: " << fd << "\n";
 
-            openDataConnection(ses);
+            while ((bytesRead = read(ses->dsck, buf, BUF_SIZE)) != 0 &&
+                    bytesRead != -1) {
+                // convert new line characters
+                dataChunk.assign(buf);
+                while ((pos = dataChunk.find("\r\n")) != string::npos) {
+                    dataChunk.replace(pos, 2, "\n");
+                }  
+
+                write(fd, dataChunk.c_str(), dataChunk.size());
+            }
+
+            close(fd);
+            break;
+        case IMAGE:
+            fd = open(path.c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+            cerr << "desc: " << fd << "\n";
+
             while ((bytesRead = read(ses->dsck, buf, BUF_SIZE)) != 0 &&
                     bytesRead != -1) {
                 write(fd, buf, bytesRead);
             }
-            closeDataConnection(ses);
             close(fd);
-            break;
-        case IMAGE:
-            printEvent(ses, "IMAGE type is not implemented yet");
             break;
         default:
             printEvent(ses, "Undefined session type");
             break;
     }
+    
+    closeDataConnection(ses);
+    resp.assign("226 Closing data connection. Requested file action successful.");
+    respond(ses, resp);
+}
+
+void execRETR(session* ses, list<string> args) {
+    int fd = 0;
+    string path(ses->currentDir);
+
+    if (path[path.size()] == '/') {
+        path += "/";
+    }
+    
+    path += args.front();
+
+    cerr << "downloaded file path is: " << path << "\n";
+
+    fd = open(path.c_str(), O_RDONLY);
+
+    if (fd == -1) {
+        cerr << "cant open file\n";
+    }
+
+    char buf[BUF_SIZE] = {0};
+    int readBytes = 0;
+
+    openDataConnection(ses);
+    if (ses->dsck <= 0) {
+        cerr << "Data connection closed.\n";
+    }
+    
+    string resp("125 Data connection opened.");
+    respond(ses, resp);
+
+    while ((readBytes = read(fd, buf, BUF_SIZE)) != 0) {
+        write(ses->dsck, buf, readBytes);
+    }
+
+    resp.assign("226 Closing data connection. Requested file action successful.");
+    respond(ses, resp);
+
+    closeDataConnection(ses);
+    close(fd);
 }
 
 string getAbsolutePath(string relativePath) {
