@@ -45,6 +45,7 @@ struct session {
     int dsck; // data socket
     string login;
     string password;
+    bool isAuthenticated;
     string currentDir;
     string ip;
     int clientPort;

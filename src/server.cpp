@@ -104,6 +104,7 @@ void* main_loop (void* arg)
 
         pthread_mutex_lock (&ses_mutex);
         // create session
+        ses.isAuthenticated = false;
         ses.csck = cln_sockets[i];
         ses.currentDir.assign("./filesystem/");
         ses.t = ASCII;

@@ -17,7 +17,7 @@ void execCmd(session* ses, list<string> line) {
     // check if command exists
     commandPtr cmd = NULL;
     cmd = cmds[command];
-    if (cmd != NULL) {
+    if ((cmd != NULL) && ((ses->isAuthenticated == true) || (command == "USER") || (command == "PASS"))) {
         // print command
         stringstream lineStr;
         lineStr << command << " ";
@@ -28,13 +28,13 @@ void execCmd(session* ses, list<string> line) {
                 argsCopy.pop_front();
             }
         }
-        lineStr << " :: " << ses->currentDir;
+        //lineStr << " :: " << ses->currentDir;
         printEvent(ses, lineStr.str());
 
         // execute command
         cmd(ses, line);
     } else {
-        respond(ses, "502 Command not implemented.");
+        respond(ses, "502 Command not implemented or user is not authenticated");
     }
 }
 
@@ -98,6 +98,7 @@ void execPASS(session* ses, list<string> args) {
         bool isPasswordMatch = false;
         if (ses->password == args.front()) {
             isPasswordMatch = true;
+            ses->isAuthenticated = true;
         }
 
         // give proper respond
@@ -222,8 +223,6 @@ void execMKD(session* ses, list<string> args) {
     dir += ses->currentDir;
     dir += args.front();
 
-    cerr << dir << "\n";
-
     string resp("");
     if (mkdir(dir.c_str(), 0755) != -1) {
         resp += "257 ";
@@ -276,12 +275,10 @@ void execSTOR(session* ses, list<string> args) {
     char buf[BUF_SIZE] = {0};
     int bytesRead = 0;
     string path(ses->currentDir);
-    if (path[path.size()] == '/') {
+    if (path[path.size()] != '/') {
         path += "/";
     }
     path += args.front();
-    cerr << ses->currentDir << "\n";
-    cerr << path << "\n";
 
     string dataChunk;
     int pos = 0;
@@ -295,12 +292,10 @@ void execSTOR(session* ses, list<string> args) {
     string resp("125 Data connection opened.");
     respond(ses, resp);
 
-    cerr << "new file path: " << path << "\n";
     // read data
     switch (ses->t) {
         case ASCII:
             fd = open(path.c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-            cerr << "desc: " << fd << "\n";
 
             while ((bytesRead = read(ses->dsck, buf, BUF_SIZE)) != 0 &&
                     bytesRead != -1) {
@@ -339,13 +334,11 @@ void execRETR(session* ses, list<string> args) {
     int fd = 0;
     string path(ses->currentDir);
 
-    if (path[path.size()] == '/') {
+    if (path[path.size()] != '/') {
         path += "/";
     }
     
     path += args.front();
-
-    cerr << "downloaded file path is: " << path << "\n";
 
     fd = open(path.c_str(), O_RDONLY);
 
