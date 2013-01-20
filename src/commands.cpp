@@ -254,12 +254,11 @@ void execCWD(session* ses, list<string> args) {
         stringstream newPath;
         if (subDir[0] == '/') { // if absolute path
             newPath << "./filesystem" << subDir;
-            cerr << "cwd: " << newPath.str() << "\n";
 
             ses->currentDir = newPath.str();
             // subDir = subDir.substr(1, subDir.length());
         } else {
-            subDir += "/";
+            subDir = subDir + "/";
             ses->currentDir += subDir;
         }
     }
@@ -366,6 +365,20 @@ void execRETR(session* ses, list<string> args) {
 
     closeDataConnection(ses);
     close(fd);
+}
+
+/** works on empty directories */
+void execRMD(session* ses, list<string> args) {
+    string dir(ses->currentDir);
+    dir += args.front();
+    string resp;
+    if (rmdir(dir.c_str()) != -1) {
+        resp.assign("250 Operation successful.");
+        respond(ses, resp);
+    } else {
+        resp.assign("550 Operation failed.");
+        respond(ses, resp);
+    }
 }
 
 string getAbsolutePath(string relativePath) {
