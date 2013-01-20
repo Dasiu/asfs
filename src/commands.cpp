@@ -186,7 +186,12 @@ void execPASV(session* ses, list<string> args) {
         // find free port
         int result;
         while ((result = bind(sck, (sockaddr*) &addr, sizeof(sockaddr_in))) == -1 && errno == EADDRINUSE) {
-            addr.sin_port = htons(++port);
+            if (port <= 1150) {
+                port = 1151;
+                addr.sin_port = htons(port);
+            } else {
+                addr.sin_port = htons(++port);
+            }
         }
         ERROR(result);
 
@@ -258,7 +263,7 @@ void execCWD(session* ses, list<string> args) {
             ses->currentDir = newPath.str();
             // subDir = subDir.substr(1, subDir.length());
         } else {
-            subDir = subDir + "/";
+            subDir += "/";
             ses->currentDir += subDir;
         }
     }
@@ -389,7 +394,7 @@ string getAbsolutePath(string relativePath) {
     if (canonicalPath != NULL) {
         absolutePath.assign(canonicalPath);
     } else {
-        absolutePath.assign("");
+        absolutePath.assign("./filesystem");
     }
 
     return absolutePath;
@@ -415,6 +420,8 @@ string runLs(session* ses, list<string> args) {
     string cmd("ls ");
     cmd += getAbsolutePath(ses->currentDir);
     cmd +=  " -A -n | tail -n+2";
+
+    cerr << "runLs: " << cmd << "\n";
 
     fp = popen(cmd.c_str(), "r");
     if (fp == NULL) {

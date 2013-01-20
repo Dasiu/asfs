@@ -3,8 +3,8 @@
 // TODO zablokowanie dzialania serwera, gdy sie nie poda hasla
 
 const unsigned int defaultProtocol = 0;
-const unsigned int port = 1150;
-const unsigned int dataConnectionPort = 1151;
+const unsigned int port = 21; // 1150
+const unsigned int dataConnectionPort = 20; // 1151
 const unsigned int connectionsQueueLength = 1;
 const unsigned int commandSize = 1000;
 const unsigned int connectionLimit = 128;
